@@ -11,7 +11,7 @@ export enum CallStatus {
 
 const Agent = ({ userName, userId, type }: AgentProps) => {
     const isSpeaking = true;;
-    let callStatus = CallStatus.ACTIVE
+    let callStatus;
     const messages = [
         "What is your name?",
         "Tell me more"
@@ -48,9 +48,12 @@ const Agent = ({ userName, userId, type }: AgentProps) => {
                 {callStatus !== CallStatus.ACTIVE ? (
                     <button className="relative btn-call">
                         <span
-                            className={cn("absolute animate-ping rounded-full opacity-75", callStatus !== CallStatus.CONNECTING & 'hidden')}
+                            className={cn(
+                                "absolute animate-ping rounded-full opacity-75",
+                                callStatus !== CallStatus.CONNECTING && 'hidden'
+                            )}
                         />
-                        <span>{callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED ? "CALL" : "..."}</span>
+                        <span>{callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED ? "CALL" : ". . ."}</span>
                     </button>
                 ) : (
                     <button className="btn-disconnect">
