@@ -3,7 +3,8 @@ import Image from "next/image"
 
 import { Button } from "@/components/ui/button"
 import InterviewCard from "@/components/InterviewCard"
-import { getCurrentUser, getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/auth.actions"
+import { getCurrentUser } from "@/lib/actions/auth.actions"
+import { getInterviewsByUserId, getLatestInterviews } from "@/lib/actions/general.actions"
 
 const HomePage = async () => {
   const user = await getCurrentUser();
