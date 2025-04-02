@@ -89,3 +89,22 @@ export async function createFeedback(params: CreateFeedbackParams) {
         return { success: false }
     }
 }
+
+export async function getFeedbacksByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null> {
+    const { userId, interviewId } = params;
+
+    const feedback = await db.collection("feedbacks")
+                        .where('interviewId', '==', interviewId)
+                        .where('userId', '==', userId)
+                        .limit(1)
+                        .get();
+
+    if(feedback.empty) return null
+    
+    const feedbackDoc = feedback.docs[0];
+
+    return {
+        id: feedbackDoc.id,
+        ...feedbackDoc.data()
+    } as Feedback;
+}
