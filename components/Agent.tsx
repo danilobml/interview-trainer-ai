@@ -8,6 +8,7 @@ import { vapi } from "@/lib/vapi.sdk";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { interviewer } from "@/constants";
+import { createFeedback } from "@/lib/actions/general.actions";
 
 export enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -71,7 +72,11 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
     }, [messages, callStatus, type, userId])
 
     const handleGenerateFeedback = async (messages: SavedMessage[]) => {
-        const { success, id } = { success: true, id: 1 }
+        const { success, feedbackId: id } = await createFeedback({
+            interviewId: interviewId!,
+            userId: userId!,
+            transcript: messages
+        })
 
         if(success && id) {
             router.push(`/interview/${interviewId}/feedback`);
