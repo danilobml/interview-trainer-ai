@@ -8,7 +8,7 @@ import { vapi } from "@/lib/vapi.sdk";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { interviewer } from "@/constants";
-import { createFeedback } from "@/lib/actions/general.actions";
+import { createFeedback, updateFeedback } from "@/lib/actions/general.actions";
 
 export enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -65,14 +65,33 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
         if(callStatus === CallStatus.FINISHED) {
             if(type === "generate") {
                 router.push("/");
-            } else {
+            } else if (type === "interview") {
                 handleGenerateFeedback(messages);
+            } else {
+                handleUpdateFeedback(messages);
             }
         }        
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [messages, callStatus, type, userId])
 
     const handleGenerateFeedback = async (messages: SavedMessage[]) => {
         const { success, feedbackId: id } = await createFeedback({
+            interviewId: interviewId!,
+            userId: userId!,
+            transcript: messages
+        })
+
+        if(success && id) {
+            router.push(`/interview/${interviewId}/feedback`);
+        } else {
+            console.log("Error saving feedback.");
+            toast.error("Error saving feedback.");
+            router.push("/");
+        }
+    }
+
+    const handleUpdateFeedback = async (messages: SavedMessage[]) => {
+        const { success, feedbackId: id } = await updateFeedback({
             interviewId: interviewId!,
             userId: userId!,
             transcript: messages

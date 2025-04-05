@@ -52,7 +52,7 @@ interface AgentProps {
   userId?: string;
   interviewId?: string;
   feedbackId?: string;
-  type: "generate" | "interview";
+  type: "generate" | "interview" | "retake";
   questions?: string[];
 }
 
@@ -97,3 +97,15 @@ interface InterviewFormProps {
 interface TechIconProps {
   techStack: string[];
 }
+
+type FeedbackObject = {
+  totalScore: number;
+  categoryScores: {
+    name: string;
+    score: number;
+    comment: string;
+  }[];
+  strengths: string[];
+  areasForImprovement: string[];
+  finalAssessment: string;
+};

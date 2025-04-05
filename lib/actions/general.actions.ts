@@ -7,9 +7,9 @@ import { generateObject } from "ai";
 
 export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null> {
     const interviews = await db.collection("interviews")
-                        .where('userId', '==', userId)
-                        .orderBy('createdAt', 'desc')
-                        .get();
+        .where('userId', '==', userId)
+        .orderBy('createdAt', 'desc')
+        .get();
 
     return interviews.docs.map(doc => ({
         id: doc.id,
@@ -21,11 +21,11 @@ export async function getLatestInterviews(params: GetLatestInterviewsParams): Pr
     const { userId, limit = 20 } = params;
 
     const interviews = await db.collection("interviews")
-                        .where('finalized', '==', true)
-                        .where('userId', '!=', userId)
-                        .orderBy('createdAt', 'desc')
-                        .limit(limit)
-                        .get();
+        .where('finalized', '==', true)
+        .where('userId', '!=', userId)
+        .orderBy('createdAt', 'desc')
+        .limit(limit)
+        .get();
 
     return interviews.docs.map(doc => ({
         id: doc.id,
@@ -34,40 +34,21 @@ export async function getLatestInterviews(params: GetLatestInterviewsParams): Pr
 }
 
 export async function getInterviewById(id: string): Promise<Interview | null> {
+    if(!id) return null;
     const interview = await db.collection("interviews")
-                        .doc(id)
-                        .get();
+        .doc(id)
+        .get();
 
     return interview.data() as Interview
 }
 
 export async function createFeedback(params: CreateFeedbackParams) {
-    const { interviewId, userId, transcript } = params;
-
     try {
-        const formattedTranscript = transcript.map((sentence: { role: string, content: string }) => (
-            `- ${sentence.role}: ${sentence.content} \n`
-        )).join("");
+        const { interviewId, userId, transcript } = params;
 
-        const { object: { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } } = await generateObject({
-            model: google("gemini-2.0-flash-001", {
-                structuredOutputs: false   
-            }),
-            schema: feedbackSchema,
-            prompt: `
-                    You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
-                    Transcript:
-                    ${formattedTranscript}
+        const interviewResult = await performInterviewSession(transcript);
 
-                    Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
-                    - **Communication Skills**: Clarity, articulation, structured responses.
-                    - **Technical Knowledge**: Understanding of key concepts for the role.
-                    - **Problem-Solving**: Ability to analyze problems and propose solutions.
-                    - **Cultural & Role Fit**: Alignment with company values and job role.
-                    - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
-                    `,
-            system: "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
-        })
+        const { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } = interviewResult!;
 
         const feedback = await db.collection("feedbacks").add({
             interviewId,
@@ -90,17 +71,84 @@ export async function createFeedback(params: CreateFeedbackParams) {
     }
 }
 
+export async function updateFeedback(params: CreateFeedbackParams) {
+    try {
+        const { interviewId, userId, transcript, feedbackId } = params;
+
+        const interviewResult = await performInterviewSession(transcript);
+
+        const { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } = interviewResult!;
+
+        const feedback = db.collection("feedbacks").doc(feedbackId!);
+
+        if(!feedback) throw new Error("Feedback not found.")
+
+        feedback.update({
+            interviewId,
+            userId,
+            totalScore,
+            categoryScores,
+            strengths,
+            areasForImprovement,
+            finalAssessment,
+            createdAt: new Date().toISOString()
+        })
+
+        return {
+            success: true,
+            feedbackId: feedback.id
+        }
+    } catch (error) {
+        console.error(`Error saving feedback`, error)
+        return { success: false }
+    }
+}
+
+export async function performInterviewSession(transcript: { role: string; content: string }[]): Promise<FeedbackObject | null> {
+    try {
+        const formattedTranscript = transcript.map((sentence: { role: string, content: string }) => (
+            `- ${sentence.role}: ${sentence.content} \n`
+        )).join("");
+
+        const { object: { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } } = await generateObject({
+            model: google("gemini-2.0-flash-001", {
+                structuredOutputs: false
+            }),
+            schema: feedbackSchema,
+            prompt: `
+                    You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
+                    Transcript:
+                    ${formattedTranscript}
+
+                    Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
+                    - **Communication Skills**: Clarity, articulation, structured responses.
+                    - **Technical Knowledge**: Understanding of key concepts for the role.
+                    - **Problem-Solving**: Ability to analyze problems and propose solutions.
+                    - **Cultural & Role Fit**: Alignment with company values and job role.
+                    - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
+                    `,
+            system: "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
+        })
+
+        return { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment }
+
+    } catch (error) {
+        console.error(error)
+        return null;
+    }
+}
+
 export async function getFeedbacksByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null> {
     const { userId, interviewId } = params;
 
     const feedback = await db.collection("feedbacks")
-                        .where('interviewId', '==', interviewId)
-                        .where('userId', '==', userId)
-                        .limit(1)
-                        .get();
+        .where('interviewId', '==', interviewId)
+        .where('userId', '==', userId)
+        .limit(1)
+        .get();
 
-    if(feedback.empty) return null
-    
+    if (feedback.empty) return null
+
     const feedbackDoc = feedback.docs[0];
 
     return {
